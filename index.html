@@ -28,6 +28,9 @@
         var partyInput;
         var ballotInput;
 
+        // Is this a by-election?
+        var byElection = false;
+
         // The abbreviations for each party or vote sharing agreement
         var partyCodes = {};
 
@@ -124,7 +127,7 @@
         // Calculate the regional elections
         function calcRegion() {
             // Iterate through every region to calculate the results
-            for (let i = 0; i < elections.length - 1; i++) {
+            for (let i = 0; i < elections.length - 1 * !byElection; i++) {
                 // Get the name of the region
                 var region = elections[i];
 
@@ -631,8 +634,14 @@
                     // Get the election
                     var election = races[col.election];
 
-                    // Get the preference number by removing the last two letters
-                    var pref = cell.substring(0, cell.length - 2);
+                    // Check if the preference is a number, like "1", or something like "1st"
+                    if (isNaN(cell)) {
+                        // Get the preference number by removing the last two letters
+                        var pref = cell.substring(0, cell.length - 2);
+                    } else {
+                        // It's a number, so convert it
+                        var pref = Number(cell);
+                    }
 
                     // Add the preference if it's not blank
                     if (pref.length > 0) {
@@ -649,7 +658,13 @@
 
             // Calculate and display the results
             calcRegion();
-            displayResults(calcParty());
+
+            // Don't calculate party results for a by-election
+            if (byElection) {
+                displayResults(false);
+            } else {
+                displayResults(calcParty());
+            }
         }
 
         // Read the ballot input CSV file
@@ -726,11 +741,23 @@
 
         // Called when the user clicks on the calculate button
         function calculate() {
-            // Make sure both CSVs have been uploaded
-            if (partyInput.files.length < 1 || ballotInput.files.length < 1) {
-                // Warn the user and abort
-                alert('Please upload both files!');
-                return;
+            // Check if it's a by-election
+            byElection = document.getElementById('byElection').checked;
+
+            if (byElection) {
+                // Make sure the ballot file has been uploaded
+                if (ballotInput.files.length < 1) {
+                    // Warn the user and abort
+                    alert('Please upload the ballot file!');
+                    return;
+                }
+            } else {
+                // Make sure both CSVs have been uploaded
+                if (partyInput.files.length < 1 || ballotInput.files.length < 1) {
+                    // Warn the user and abort
+                    alert('Please upload both files!');
+                    return;
+                }
             }
 
             // If it's already been calculated once, reset it first
@@ -749,8 +776,13 @@
                 elections = [];
             }
 
-            // Read the party file first (it'll read the ballot file once it's done)
-            readPartyFile();
+            if (byElection) {
+                // Only read the ballot file if it's a by-election
+                readBallotFile();
+            } else {
+                // Read the party file first (it'll read the ballot file once it's done)
+                readPartyFile();
+            }
         }
 
         window.onload = function() {
@@ -766,6 +798,8 @@
     <input type="file" name="file" id="partyInput" accept=".csv"><br><br>
     <label for="ballotInput">Ballots: </label>
     <input type="file" name="file" id="ballotInput" accept=".csv"><br><br>
+    <input type="checkbox" name="byElection" id="byElection">
+    <label for="byElection">By-election (if checked, party file is not needed)</label><br><br>
     <button onclick="calculate()">Calculate</button>
 </body>
 </html>
