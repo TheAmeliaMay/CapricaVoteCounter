@@ -655,16 +655,17 @@
                     var election = races[col.election];
 
                     // Check if the preference is a number, like "1", or something like "1st"
+                    var pref;
                     if (isNaN(cell)) {
                         // Get the preference number by removing the last two letters
-                        var pref = cell.substring(0, cell.length - 2);
+                        pref = cell.substring(0, cell.length - 2);
                     } else {
                         // It's a number, so convert it
-                        var pref = Number(cell);
+                        pref = Number(cell);
                     }
 
                     // Add the preference if it's not blank
-                    if (pref.length > 0) {
+                    if (pref !== undefined) {
                         election[pref] = col.candidate;
                     }
                 }
