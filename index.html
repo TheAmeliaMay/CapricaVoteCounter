@@ -36,10 +36,9 @@
 
         // Stores information about a ballot
         class Ballot {
-            constructor(timestamp, votes, username) {
+            constructor(timestamp, votes) {
                 this.timestamp = timestamp;
                 this.votes = votes;
-                this.username = username;
             }
         }
 
@@ -157,6 +156,11 @@
                     // Iterate through each ballot
                     for (let b = 0; b < ballots.length; b++) {
                         var ballot = ballots[b];
+
+                        // Skip the ballot if they didn't vote in that region
+                        if (ballot.votes[region] === undefined) {
+                            continue;
+                        }
                         
                         // Get the preferences for the region being calculated
                         var preferences = Object.values(ballot.votes[region]);
@@ -318,6 +322,12 @@
                 
                 // Get the first preference vote
                 var preferences = Object.values(ballot.votes);
+
+                // Don't count the vote (they didn't vote in the party-list election)
+                if (preferences[preferences.length - 1] === undefined) {
+                    continue;
+                }
+
                 var pref = preferences[preferences.length - 1][1];
 
                 // Don't count the vote (they didn't vote in the party-list election)
@@ -375,6 +385,11 @@
                 var preferences = Object.values(ballot.votes);
                 preferences = preferences[preferences.length - 1];
 
+                // Don't count the vote (they didn't vote in the party-list election)
+                if (preferences === undefined) {
+                    continue;
+                }
+
                 // Get which preference to vote for
                 var pref;
                 if (qualifying.indexOf(preferences[1]) > -1) {
@@ -383,6 +398,11 @@
                 } else {
                     // Use the 2nd preference if they don't
                     pref = preferences[2];
+                }
+
+                // Don't count the vote (they didn't vote in the party-list election)
+                if (pref === undefined) {
+                    continue;
                 }
 
                 // Skip if undefined
@@ -593,7 +613,7 @@
             // Categorize columns based on the election title and candidate name
             var columnInfo = [];
 
-            for (let i = 1; i < header.length - 1; i++) {
+            for (let i = 1; i < header.length; i++) {
                 // Get the name of the election (outside the brackets)
                 var election = header[i].match(/(^.*(?= \[))/)[0].replace(/^"/, "");
 
@@ -619,7 +639,7 @@
 
                 // Add every race to an object
                 var races = {};
-                for (let c = 1; c < line.length - 1; c++) {
+                for (let c = 1; c < line.length; c++) {
                     // Get the cell
                     var cell = line[c];
 
@@ -650,7 +670,7 @@
                 }
 
                 // Create the ballot
-                var ballot = new Ballot(line[0], races, line[line.length - 1]);
+                var ballot = new Ballot(line[0], races);
 
                 // Add it to the array
                 ballots.push(ballot);
