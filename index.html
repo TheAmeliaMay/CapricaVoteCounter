@@ -13,6 +13,10 @@
             margin-left: 10%;
             margin-right: 10%;
         }
+
+        h2 {
+            text-decoration: underline;
+        }
     </style>
 
     <script type="text/javascript">
@@ -51,6 +55,9 @@
             'partyList': {}
         };
 
+        // Keep track of party data
+        var partyData = {};
+
         // Keep track of every election title
         var elections = [];
 
@@ -70,36 +77,51 @@
             for (let i = 0; i < regResults.length; i++) {
                 var region = regResults[i];
 
-                // Create a paragraph to store the text in
-                var p = document.createElement('p');
+                // Show the name of the region
+                var regHeader = document.createElement('h3');
+                regHeader.innerText = region[0];
+                div.appendChild(regHeader);
 
-                // Show the name of the region in bold
-                var b = document.createElement('b');
-                b.innerText = `${region[0]}:`;
-                p.appendChild(b);
+                // Show the winner
+                var winnerPar = document.createElement('p');
+                winnerPar.innerHTML = `<b>Winner:</b> ${region[1].winner[0]}`;
+                div.appendChild(winnerPar);
 
-                // Create a text node to add the winner to
-                var text = document.createTextNode(' ');
+                // Create a details element to hold the full results in
+                var regDetails = document.createElement('details');
 
-                // Add the winner(s)
-                var winner = region[1].winner;
-                for (let w = 0; w < winner.length; w++) {
-                    text.textContent = `${text.textContent}${winner[w]}`;
+                // Add a summary to the details
+                var regSumm = document.createElement('summary');
+                regSumm.innerText = 'Full results...';
+                regDetails.appendChild(regSumm);
 
-                    // Add a comma and a space to the end if there's multiple
-                    if (w < winner.length - 1 && winner.length > 1) {
-                        text.textContent = `${text.textContent}, `;
+                // Iterate through each round
+                for (let r = 0; r < region[1].rounds.length; r++) {
+                    var round = region[1].rounds[r];
+
+                    // Display the round
+                    var roundHeader = document.createElement('h4');
+                    roundHeader.innerText = `Round ${r + 1}`;
+                    regDetails.appendChild(roundHeader);
+
+                    // Iterate through each candidate
+                    var entries = Object.entries(round);
+                    for (let c = 0; c < entries.length; c++) {
+                        var candidate = entries[c];
+
+                        // Create a paragraph to display the text
+                        var candPar = document.createElement('p');
+                        candPar.innerText = `${candidate[0]}: ${candidate[1]}`;
+                        regDetails.appendChild(candPar);
                     }
                 }
 
-                // If there's a tie, tell them
-                if (winner.length > 1) {
-                    text.textContent = `${text.textContent} (tie)`;
-                }
-
-                // Add the text
-                p.appendChild(text);
-                div.appendChild(p);
+                // Add the details to the div
+                div.appendChild(regDetails);
+                
+                // Add a break after each region
+                var br = document.createElement('br');
+                div.appendChild(br);
             }
 
             // Display the party-list results
@@ -114,13 +136,57 @@
                 for (let j = 0; j < parties.length; j++) {
                     var party = parties[j];
                     var p = document.createElement('p');
-                    p.innerHTML = `<b>${party[0]}:</b> ${party[1]}`;
+                    p.innerHTML = `<b>${party[0]}:</b> ${party[1]} seats`;
                     div.appendChild(p);
                 }
             }
 
+            // Create a details element to show the full party-list results in
+            var plDetails = document.createElement('details');
+
+            // Add a summary to the details
+            var plSumm = document.createElement('summary');
+            plSumm.innerText = 'Full results...'
+            plDetails.appendChild(plSumm);
+
+            // Show the 1st round results
+            var firstHeading = document.createElement('h4');
+            firstHeading.innerText = 'Round 1';
+            plDetails.appendChild(firstHeading);
+
+            // Iterate over each party in the 1st round of the party data
+            var firstParties = Object.entries(partyData['votes1st']);
+            for (let i = 0; i < firstParties.length; i++) {
+                // Show the number of votes that party got
+                var party = firstParties[i];
+                var fpp = document.createElement('p');
+                fpp.innerHTML = `${party[0]}: ${party[1]}`;
+                plDetails.appendChild(fpp);
+            }
+
+            // Show the 2nd round results
+            var secondHeading = document.createElement('h4');
+            secondHeading.innerText = 'Round 2';
+            plDetails.appendChild(secondHeading);
+
+            // Iterate over each party in the 2nd round of the party data
+            var secondParties = Object.entries(partyData['votes2nd']);
+            for (let i = 0; i < secondParties.length; i++) {
+                // Show the number of votes that party got
+                var party = secondParties[i];
+                var spp = document.createElement('p');
+                spp.innerHTML = `${party[0]}: ${party[1]}`;
+                plDetails.appendChild(spp);
+            }
+
+            // Add the details to the div
+            div.appendChild(plDetails);
+
             // Add the div to the page
             document.body.appendChild(div);
+
+            console.log(results);
+            console.log(partyData);
         }
 
         // Calculate the regional elections
@@ -254,6 +320,36 @@
                     currentRound++;
                 }
 
+                // Break ties
+                if (winner.length > 1) {
+                    // Check who had the most first preference votes
+                    var highest1p = [];
+                    var h1pv = 0;
+
+                    // Interate through each of the tied candidates
+                    for (let w = 0; w < winner.length; w++) {
+                        // Get the number of 1st preference votes
+                        var first = rounds[0][winner[w]];
+
+                        // Check if it's higher than the current highest
+                        if (first > h1pv) {
+                            // Set the highest to this candidate
+                            highest1p = [winner[w]];
+                        } else if (first == h1pv) {
+                            // If they had the same number of first preference votes, push it to the list
+                            highest1p.push(winner[w]);
+                        }
+                    }
+
+                    if (highest1p.length > 1) {
+                        // If there's stil a tie, choose a candidate at random
+                        winner = highest1p[Math.floor(Math.random() * highest1p.length)];
+                    } else {
+                        // Set the candidate with the most 1st preference votes as the winner
+                        winner = highest1p;
+                    }
+                }
+
                 // Save the results
                 results.regional[region] = {
                     'winner': winner,
@@ -265,7 +361,7 @@
         // Calculate the party-list results (the last election in the series)
         function calcParty() {
             // Keep track of information for parties
-            var partyData = {
+            partyData = {
                 'votes1st': {}, // The number of votes in the 1st round
                 'votes2nd': {}, // The number of votes in the 2nd round
                 'seats': {}, // The total number of seats each party won
@@ -665,7 +761,7 @@
                     }
 
                     // Add the preference if it's not blank
-                    if (pref !== undefined) {
+                    if (pref !== undefined && pref > 0) {
                         election[pref] = col.candidate;
                     }
                 }
