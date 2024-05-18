@@ -20,23 +20,8 @@
     </style>
 
     <script type="text/javascript">
-        // What percentage of the vote a party needs to qualify for seats
-        var threshold = 0.03; // Threshold for single parties
-        var thr2 = 0.05; // Threshold for 2 parties in a vote sharing agreement
-        var thr3 = 0.1; // Threshold for 3 or more parties in a vote sharing agreement
-
-        // The number of seats to allocate via the national, party-list vote
-        var natSeats = 30;
-
-        // Elements
-        var partyInput;
+        // Ballot file input element
         var ballotInput;
-
-        // Is this a by-election?
-        var byElection = false;
-
-        // The abbreviations for each party or vote sharing agreement
-        var partyCodes = {};
 
         // Stores information about a ballot
         class Ballot {
@@ -51,18 +36,14 @@
 
         // Keep track of the results
         var results = {
-            'regional': {},
-            'partyList': {}
+            'regional': {}
         };
-
-        // Keep track of party data
-        var partyData = {};
 
         // Keep track of every election title
         var elections = [];
 
         // Display the results on screen
-        function displayResults(displayPL) {
+        function displayResults() {
             // Create a div to contain the elements
             var div = document.createElement('div');
             div.id = 'results';
@@ -124,7 +105,7 @@
                 div.appendChild(br);
             }
 
-            // Display the party-list results
+            /* Display the party-list results
             if (displayPL) {
                 var ph2 = document.createElement('h2');
                 ph2.innerText = 'Party-list Results';
@@ -180,19 +161,16 @@
             }
 
             // Add the details to the div
-            div.appendChild(plDetails);
+            div.appendChild(plDetails);*/
 
             // Add the div to the page
             document.body.appendChild(div);
-
-            console.log(results);
-            console.log(partyData);
         }
 
         // Calculate the regional elections
         function calcRegion() {
             // Iterate through every region to calculate the results
-            for (let i = 0; i < elections.length - 1 * !byElection; i++) {
+            for (let i = 0; i < elections.length; i++) {
                 // Get the name of the region
                 var region = elections[i];
 
@@ -358,349 +336,6 @@
             }
         }
 
-        // Calculate the party-list results (the last election in the series)
-        function calcParty() {
-            // Keep track of information for parties
-            partyData = {
-                'votes1st': {}, // The number of votes in the 1st round
-                'votes2nd': {}, // The number of votes in the 2nd round
-                'seats': {}, // The total number of seats each party won
-                'additional': {}, // The number of additional seats allocated via the party-list vote
-                'timeSinceWon': {} // How many rounds of apportionment it's been since each party last won a seat
-            };
-
-            // Get the number of seats won by each party in the regional elections
-            var regResults = Object.values(results.regional);
-            for (let i = 0; i < regResults.length; i++) {
-                var region = regResults[i];
-
-                // We can't calculate the results if there's a tie
-                if (region.winner.length > 1) {
-                    return false;
-                }
-
-                // Get the party code from the winner's name in parentheses
-                var pCode = region.winner[0].match(/(\(.*\)$)/)[0];
-                pCode = pCode.substring(1, pCode.length - 1);
-
-                // Figure out which party they're a member of
-                var party;
-                var pCodes = Object.keys(partyCodes);
-                for (let c = 0; c < pCodes.length; c++) {
-                    if (partyCodes[pCodes[c]].indexOf(pCode) > -1) {
-                        party = pCodes[c];
-                    }
-                }
-
-                // No party is found
-                if (party === null) {
-                    alert(`No party found for ${region.winner[0]}!`);
-                    return false;
-                }
-
-                // Count them as a seat for their party
-                if (Object.hasOwn(partyData.seats, party)) {
-                    // Add 1 to the seat count
-                    partyData.seats[party]++;
-                } else {
-                    // Add a new party with 1 seat
-                    partyData.seats[party] = 1;
-                }
-            }
-
-            // Keep track of the total number of votes in both rounds
-            var total1 = 0;
-            var total2 = 0;
-
-            // Count the total number of votes for every party for the 1st preference
-            for (let b = 0; b < ballots.length; b++) {
-                var ballot = ballots[b];
-                
-                // Get the first preference vote
-                var preferences = Object.values(ballot.votes);
-
-                // Don't count the vote (they didn't vote in the party-list election)
-                if (preferences[preferences.length - 1] === undefined) {
-                    continue;
-                }
-
-                var pref = preferences[preferences.length - 1][1];
-
-                // Don't count the vote (they didn't vote in the party-list election)
-                if (pref === undefined) {
-                    continue;
-                }
-
-                if (pref !== null) {
-                    if (Object.hasOwn(partyData.votes1st, pref)) {
-                        // Add one vote for the party
-                        partyData.votes1st[pref]++;
-                    } else {
-                        // Add a new entry with 1 vote
-                        partyData.votes1st[pref] = 1;
-                    }
-
-                    // Add 1 to the total
-                    total1++;
-                }
-            }
-
-            // Qualify parties that got more votes than the threshold
-            var qualifying = [];
-            var parties = Object.entries(partyData.votes1st);
-
-            for (let p = 0; p < parties.length; p++) {
-                var party = parties[p];
-
-                // Get the threshold based on the number of parties it represents
-                var pCode = partyCodes[party[0]];
-                var thr = threshold; // Default threshold for single parties
-
-                // Skip it if the code is undefined)
-                if (pCode === undefined) {
-                    continue;
-                }
-
-                if (pCode.length == 2) {
-                    thr = thr2; // Threshold for 2 parties in a VSA
-                } else if (pCode.length > 2) {
-                    thr = thr3; // Threshold for 3+ parties in a VSA
-                }
-
-                // Qualify the party if it got more votes than the threshold
-                if (party[1] / total1 > thr) {
-                    qualifying.push(party[0]);
-                }
-            }
-
-            // Count the 2nd round of votes
-            for (let b = 0; b < ballots.length; b++) {
-                var ballot = ballots[b];
-
-                // Get the voter's party-list preferences
-                var preferences = Object.values(ballot.votes);
-                preferences = preferences[preferences.length - 1];
-
-                // Don't count the vote (they didn't vote in the party-list election)
-                if (preferences === undefined) {
-                    continue;
-                }
-
-                // Get which preference to vote for
-                var pref;
-                if (qualifying.indexOf(preferences[1]) > -1) {
-                    // Use the 1st preference if they qualify
-                    pref = preferences[1];
-                } else {
-                    // Use the 2nd preference if they don't
-                    pref = preferences[2];
-                }
-
-                // Don't count the vote (they didn't vote in the party-list election)
-                if (pref === undefined) {
-                    continue;
-                }
-
-                // Skip if undefined
-                if (pref === undefined) {
-                    continue;
-                }
-
-                if (pref !== null) {
-                    if (Object.hasOwn(partyData.votes2nd, pref)) {
-                        // Add one vote for the party
-                        partyData.votes2nd[pref]++;
-                    } else {
-                        // Add a new entry with 1 vote
-                        partyData.votes2nd[pref] = 1;
-                    }
-
-                    // Add 1 to the total
-                    total2++;
-                }
-            }
-
-            // Set time since won to 0 for every party
-            for (let q = 0; q < qualifying.length; q++) {
-                partyData.timeSinceWon[qualifying[q]] = 0;
-            }
-
-            // Allocate the party-list seats until none are left
-            var totalSeats = 0;
-            while (totalSeats < natSeats) {
-                // Calculate the quotient for every party and find the highest
-                var highestQ = 0;
-                var highestP = [];
-
-                for (let i = 0; i < qualifying.length; i++) {
-                    var party = qualifying[i];
-
-                    // Get the number of seats the party has
-                    var seats = 0;
-
-                    if (Object.hasOwn(partyData.seats, party)) {
-                        // Get the number of seats the party has already won
-                        seats = partyData.seats[party];
-                    } else {
-                        // Set the number of seats to 0
-                        partyData.seats[party] = 0;
-                    }
-
-                    // Calculate the quotient
-                    var quotient = partyData.votes2nd[party] / (seats * 1.5 + 1);
-
-                    // Check if it's higher
-                    if (quotient > highestQ) {
-                        // Save it as the party with the highest quotient
-                        highestQ = quotient;
-                        highestP = [party];
-                    } else if (quotient == highestQ) {
-                        // It's a tie, so push the party to the array
-                        highestP.push(party);
-                    }
-                }
-
-                if (highestP.length == 1) {
-                    // Give the party with the highest quotient an extra seat
-                    partyData.seats[highestP[0]]++;
-
-                    if (Object.hasOwn(partyData.additional, highestP[0])) {
-                        partyData.additional[highestP[0]]++;
-                    } else {
-                        partyData.additional[highestP[0]] = 1;
-                    }
-
-                    // Add 1 to the total
-                    totalSeats++;
-
-                    // Reset the time since won counter
-                    partyData.timeSinceWon[highestP[0]] = 0;
-                } else {
-                    // Get how many seats are left
-                    var seatsLeft = natSeats - totalSeats;
-
-                    // If tied, check if there's enough seats left to give one to all of them
-                    if (seatsLeft >= highestP.length) {
-                        // Give them all a seat
-                        for (let i = 0; i < highestP.length; i++) {
-                            var party = highestP[i];
-                            partyData.seats[party]++;
-
-                            if (Object.hasOwn(partyData.additional, party)) {
-                                partyData.additional[party]++;
-                            } else {
-                                partyData.additional[party] = 1;
-                            }
-
-                            // Add 1 to the total
-                            totalSeats++;
-
-                            // Reset the time since won counter
-                            partyData.timeSinceWon[party] = 0;
-                        }
-                    } else {
-                        // There's a true tie, so check which party hasn't won a seat for the longest time
-                        // Loop over the remaining seats
-                        while (seatsLeft > 0) {
-                            var longest = 0;
-                            var longestP = [];
-
-                            // Loop over each tied party
-                            for (let p = 0; p < highestP.length; p++) {
-                                var party = highestP[p];
-
-                                // Get how long it's been since that party won a seat
-                                var time = partyData.timeSinceWon[party];
-
-                                // Check if it's longer than the current longest
-                                if (time > longest) {
-                                    longest = time;
-                                    longestP = [party];
-                                } else {
-                                    // There's a tie, so append it
-                                    longestP.push(party);
-                                }
-                            }
-
-                            // Give the seat to the party unless there's a tie
-                            if (longestP.length == 1) {
-                                partyData.seats[longestP[0]]++;
-
-                                if (Object.hasOwn(partyData.additional, longestP[0])) {
-                                    partyData.additional[longestP[0]]++;
-                                } else {
-                                    partyData.additional[longestP[0]] = 1;
-                                }
-
-                                // Add 1 to the total
-                                totalSeats++;
-
-                                // Subtract 1 from seats left
-                                seatsLeft--;
-
-                                // Reset the time since won counter
-                                partyData.timeSinceWon[longestP[0]] = 0;
-                            } else {
-                                // If there's a tie again, check if there's enough seats left to give them all seats
-                                if (seatsLeft >= longestP.length) {
-                                    // Give every party a seat
-                                    for (let i = 0; i < longestP.length; i++) {
-                                        var party = longestP[i];
-
-                                        partyData.seats[party]++;
-
-                                        if (Object.hasOwn(partyData.additional, party)) {
-                                            partyData.additional[party]++;
-                                        } else {
-                                            partyData.additional[party] = 1;
-                                        }
-
-                                        // Add 1 to the total
-                                        totalSeats++;
-
-                                        // Subtract 1 from seats left
-                                        seatsLeft--;
-
-                                        // Reset the time since won counter
-                                        partyData.timeSinceWon[party] = 0;
-                                    }
-                                } else {
-                                    // There's not enough left, so there's a true tie
-                                    // Choose a party at random until there's no seats left
-                                    // And make sure not to chose the same party twice if there's multiple
-                                    var lpCopy = longestP.slice();
-                                    for (let i = 0; i < seatsLeft; i++) {
-                                        // Get a party at random and remove it from the array
-                                        var party = lpCopy.splice(Math.floor(Math.random() * lpCopy.length), 1);
-
-                                        // Give that party a seat
-                                        partyData.seats[party]++;
-
-                                        if (Object.hasOwn(partyData.additional, party)) {
-                                            partyData.additional[party]++;
-                                        } else {
-                                            partyData.additional[party] = 1;
-                                        }
-
-                                        // Add 1 to the total
-                                        totalSeats++;
-                                    }
-
-                                    seatsLeft = 0;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Save the results as the additional number of seats
-            results.partyList = partyData.additional;
-
-            // Return true if it's successful
-            return true;
-        }
-
         // Convert each line to a ballot object and add it to the array
         function readBallots(lines) {
             // Get the header from the first row
@@ -735,7 +370,7 @@
 
                 // Add every race to an object
                 var races = {};
-                for (let c = 1; c < line.length; c++) {
+                for (let c = 1; c < line.length - 1; c++) {
                     // Get the cell
                     var cell = line[c];
 
@@ -775,13 +410,7 @@
 
             // Calculate and display the results
             calcRegion();
-
-            // Don't calculate party results for a by-election
-            if (byElection) {
-                displayResults(false);
-            } else {
-                displayResults(calcParty());
-            }
+            displayResults();
         }
 
         // Read the ballot input CSV file
@@ -810,71 +439,13 @@
             reader.readAsText(ballotInput.files[0]);
         }
 
-        // Read the party input CSV file
-        function readPartyFile() {
-            // Create a new file reader
-            var reader = new FileReader();
-
-            reader.addEventListener('load', function() {
-                // Convert the text to an array of lines
-                var lines = reader.result.split('\r\n');
-                
-                // Create a new array to store split lines in
-                var linesNew = [];
-
-                // Iterate over each line
-                for (var i = 0; i < lines.length; i++) {
-                    // Split the line into cells
-                    var cells = lines[i].split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/g);
-
-                    // Information about the party
-                    var partyName;
-                    var partyAbbr = [];
-                    
-                    // Iterate over each cell
-                    for (var c = 0; c < cells.length; c++) {
-                        if (c == 0) {
-                            // The first cell is the full name (if VSA, includes all parties)
-                            partyName = cells[c].replace(/^"/,"").replace(/"$/,"");
-                        } else {
-                            // All other cells are abbreviations
-                            // Don't push empty cells
-                            if (cells[c].length > 0) {
-                                partyAbbr.push(cells[c]);
-                            }
-                        }
-                    }
-
-                    // Save the list of abbreviations
-                    partyCodes[partyName] = partyAbbr;
-                }
-
-                // Read the ballot file now that it's loaded
-                readBallotFile();
-            });
-
-            reader.readAsText(partyInput.files[0]);
-        }
-
         // Called when the user clicks on the calculate button
         function calculate() {
-            // Check if it's a by-election
-            byElection = document.getElementById('byElection').checked;
-
-            if (byElection) {
-                // Make sure the ballot file has been uploaded
-                if (ballotInput.files.length < 1) {
-                    // Warn the user and abort
-                    alert('Please upload the ballot file!');
-                    return;
-                }
-            } else {
-                // Make sure both CSVs have been uploaded
-                if (partyInput.files.length < 1 || ballotInput.files.length < 1) {
-                    // Warn the user and abort
-                    alert('Please upload both files!');
-                    return;
-                }
+            // Make sure the ballot file has been uploaded
+            if (ballotInput.files.length < 1) {
+                // Warn the user and abort
+                alert('Please upload the ballot file!');
+                return;
             }
 
             // If it's already been calculated once, reset it first
@@ -887,36 +458,25 @@
                 partyCodes = {};
                 ballots = [];
                 results = {
-                    'regional': {},
-                    'partyList': {}
+                    'regional': {}
                 };
                 elections = [];
             }
 
-            if (byElection) {
-                // Only read the ballot file if it's a by-election
-                readBallotFile();
-            } else {
-                // Read the party file first (it'll read the ballot file once it's done)
-                readPartyFile();
-            }
+            // Read the ballot file
+            readBallotFile();
         }
 
         window.onload = function() {
-            // Get the party and ballot input elements
-            partyInput = document.getElementById('partyInput');
+            // Get the ballot input element
             ballotInput = document.getElementById('ballotInput');
         }
     </script>
 </head>
 <body>
     <h1>Caprica Election Calculator</h1>
-    <label for="partyInput">Parties: </label>
-    <input type="file" name="file" id="partyInput" accept=".csv"><br><br>
     <label for="ballotInput">Ballots: </label>
     <input type="file" name="file" id="ballotInput" accept=".csv"><br><br>
-    <input type="checkbox" name="byElection" id="byElection">
-    <label for="byElection">By-election (if checked, party file is not needed)</label><br><br>
     <button onclick="calculate()">Calculate</button>
 </body>
 </html>
